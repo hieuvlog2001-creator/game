@@ -6,19 +6,17 @@
  objects = {
   111111111111111111111111 /* Project object */ = {isa = PBXProject; attributes = {LastUpgradeCheck = 1540;}; buildConfigurationList = 222222222222222222222222; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 333333333333333333333333; productRefGroup = 444444444444444444444444; projectDirPath = ""; projectRoot = ""; targets = (555555555555555555555555); };
   333333333333333333333333 = {isa = PBXGroup; children = (666666666666666666666666, 777777777777777777777777, 888888888888888888888888); sourceTree = "<group>"; };
-  666666666666666666666666 = {isa = PBXGroup; children = (999999999999999999999999, ABABABABABABABABABABABAB, ACACACACACACACACACACACAC); path = BusTrafficFever; sourceTree = "<group>"; };
+  666666666666666666666666 = {isa = PBXGroup; children = (999999999999999999999999, ABABABABABABABABABABABAB); path = BusTrafficFever; sourceTree = "<group>"; };
   777777777777777777777777 = {isa = PBXGroup; children = (AAAA00000000000000000001); name = Products; sourceTree = "<group>"; };
   888888888888888888888888 = {isa = PBXGroup; children = (); name = "Supporting Files"; sourceTree = "<group>"; };
   999999999999999999999999 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusTrafficFeverApp.swift; sourceTree = "<group>"; };
   AAAA00000000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BusTrafficFever.app; sourceTree = BUILT_PRODUCTS_DIR; };
   555555555555555555555555 = {isa = PBXNativeTarget; buildConfigurationList = BBBB00000000000000000001; buildPhases = (CCCC00000000000000000001, DDDD00000000000000000001, EEEE00000000000000000001); buildRules = (); dependencies = (); name = BusTrafficFever; productName = BusTrafficFever; productReference = AAAA00000000000000000001; productType = "com.apple.product-type.application"; };
   CCCC00000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FFFF00000000000000000001); runOnlyForDeploymentPostprocessing = 0; };
-  DDDD00000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (ADADADADADADADADADADADAD, AEAEAEAEAEAEAEAEAEAEAEAE); runOnlyForDeploymentPostprocessing = 0; };
+  DDDD00000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (ADADADADADADADADADADADAD); runOnlyForDeploymentPostprocessing = 0; };
   EEEE00000000000000000001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
   ADADADADADADADADADADADAD = {isa = PBXBuildFile; fileRef = ABABABABABABABABABABABAB; };
-  AEAEAEAEAEAEAEAEAEAEAEAE = {isa = PBXBuildFile; fileRef = ACACACACACACACACACACACAC; };
   ABABABABABABABABABABABAB = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-  ACACACACACACACACACACACAC = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
   FFFF00000000000000000001 = {isa = PBXBuildFile; fileRef = 999999999999999999999999; };
   222222222222222222222222 = {isa = XCConfigurationList; buildConfigurations = (121212121212121212121212, 131313131313131313131313); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
   BBBB00000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (141414141414141414141414, 151515151515151515151515); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };

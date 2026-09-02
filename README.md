@@ -1,33 +1,31 @@
-# Bus Traffic Fever — GitHub IPA Build
+# Bus Traffic Fever — GitHub iOS Build
 
-GitHub Actions-ready iOS project using the supplied reference screens.
+This project includes a GitHub Actions workflow for building the iOS app on a macOS runner.
 
-## 1. Upload to GitHub
-Create a repository, then upload the contents of this folder to the repository root.
+## Important
 
-## 2. Build
-Open **Actions** → **Build Bus Traffic Fever IPA** → **Run workflow**.
+The workflow is intentionally written so that **GitHub Secrets are not referenced directly in a step-level `if:` expression**. GitHub does not allow the `secrets` context in that location. Instead, `HAS_SIGNING` is set once at workflow level and the steps use `env.HAS_SIGNING`.
 
-The workflow uses a GitHub-hosted macOS runner, builds an iOS archive, creates an IPA and uploads it as a workflow artifact.
+## Quick build
 
-## 3. Unsigned vs signed IPA
-If no Apple signing secrets are configured, the workflow creates:
+1. Upload the contents of this folder to your GitHub repository.
+2. Open **Actions**.
+3. Select **Build Bus Traffic Fever IPA**.
+4. Click **Run workflow**.
+5. Open the completed run and download **BusTrafficFever-IPA** under Artifacts.
 
-`BusTrafficFever-unsigned.ipa`
+With no Apple signing secrets configured, the workflow produces `BusTrafficFever-unsigned.ipa` for build verification. It is not directly installable on a normal iPhone.
 
-This is useful for validating the build/package, but it is **not installable on a normal physical iPhone** because iOS requires code signing.
+## Signed IPA
 
-For an installable Ad Hoc IPA, add these GitHub repository secrets:
+For an Ad Hoc signed IPA, configure these repository Actions secrets:
 
-- `IOS_CERTIFICATE_BASE64` — base64 of your Apple Distribution `.p12`
-- `IOS_CERTIFICATE_PASSWORD` — password for the `.p12`
-- `IOS_PROVISIONING_PROFILE_BASE64` — base64 of the matching `.mobileprovision`
-- `KEYCHAIN_PASSWORD` — any temporary keychain password
-- `IOS_TEAM_ID` — your Apple Developer Team ID
-- `IOS_PROVISIONING_PROFILE_NAME` — exact profile name
-- `IOS_SIGNING_IDENTITY` — e.g. `Apple Distribution: Your Company (TEAMID)`
+- `IOS_CERTIFICATE_BASE64`
+- `IOS_CERTIFICATE_PASSWORD`
+- `IOS_PROVISIONING_PROFILE_BASE64`
+- `KEYCHAIN_PASSWORD`
+- `IOS_TEAM_ID`
+- `IOS_PROVISIONING_PROFILE_NAME`
+- `IOS_SIGNING_IDENTITY`
 
-Then rerun the workflow. It will produce `BusTrafficFever.ipa`.
-
-## 4. App behavior
-The current starter reproduces the supplied splash/welcome/game screens and provides a simple PLAY/back interaction. It does **not** contain the original game's source code or complete gameplay engine.
+The provisioning profile must match the bundle identifier `com.example.Bustrafficfever` (or the bundle identifier contained in the profile).
