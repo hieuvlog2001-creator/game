@@ -3,17 +3,17 @@ name: Build Bus Traffic Fever IPA
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "master" ]
+    branches:
+      - main
+      - master
 
 permissions:
   contents: read
 
-env:
-  HAS_SIGNING: ${{ secrets.IOS_CERTIFICATE_BASE64 != '' }}
-
 jobs:
   build:
     runs-on: macos-15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,15 +21,36 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      # secrets chỉ được đọc trong env của step,
+      # sau đó chuyển trạng thái sang GITHUB_ENV
+      - name: Detect signing configuration
+        env:
+          CERT_B64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+        run: |
+          if [ -n "$CERT_B64" ]; then
+            echo "HAS_SIGNING=true" >> "$GITHUB_ENV"
+            echo "Signing configuration detected."
+          else
+            echo "HAS_SIGNING=false" >> "$GITHUB_ENV"
+            echo "No Apple signing certificate configured."
+          fi
+
       - name: Show signing mode
-        run: echo "Signing enabled: $HAS_SIGNING"
+        run: |
+          echo "Signing enabled: $HAS_SIGNING"
+
+      # ==========================================================
+      # UNSIGNED BUILD
+      # ==========================================================
 
       - name: Build unsigned archive
         if: env.HAS_SIGNING == 'false'
         run: |
           set -euo pipefail
+
           rm -rf build
           mkdir -p build
+
           xcodebuild \
             -project BusTrafficFever.xcodeproj \
             -scheme BusTrafficFever \
@@ -41,6 +62,10 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             archive
 
+      # ==========================================================
+      # INSTALL APPLE SIGNING
+      # ==========================================================
+
       - name: Install Apple signing assets
         if: env.HAS_SIGNING == 'true'
         env:
@@ -50,6 +75,7 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           set -euo pipefail
+
           CERT_PATH="$RUNNER_TEMP/dist.p12"
           PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
           KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
@@ -57,25 +83,76 @@ jobs:
           echo "$CERT_B64" | base64 --decode > "$CERT_PATH"
           echo "$PROFILE_B64" | base64 --decode > "$PROFILE_PATH"
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
-          security default-keychain -s "$KEYCHAIN_PATH"
+          security create-keychain \
+            -p "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
 
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
-          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
+          security set-keychain-settings \
+            -lut 21600 \
+            "$KEYCHAIN_PATH"
+
+          security unlock-keychain \
+            -p "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security import \
+            "$CERT_PATH" \
+            -P "$CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychains \
+            -d user \
+            -s "$KEYCHAIN_PATH" login.keychain-db
+
+          security default-keychain \
+            -s "$KEYCHAIN_PATH"
+
+          mkdir -p \
+            "$HOME/Library/MobileDevice/Provisioning Profiles"
+
+          security cms \
+            -D \
+            -i "$PROFILE_PATH" \
+            > "$RUNNER_TEMP/profile.plist"
+
+          PROFILE_UUID=$(
+            /usr/libexec/PlistBuddy \
+            -c 'Print :UUID' \
+            "$RUNNER_TEMP/profile.plist"
+          )
+
+          PROFILE_NAME=$(
+            /usr/libexec/PlistBuddy \
+            -c 'Print :Name' \
+            "$RUNNER_TEMP/profile.plist"
+          )
+
+          PROFILE_APP_ID=$(
+            /usr/libexec/PlistBuddy \
+            -c 'Print :Entitlements:application-identifier' \
+            "$RUNNER_TEMP/profile.plist"
+          )
+
           BUNDLE_ID="${PROFILE_APP_ID#*.}"
 
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          cp \
+            "$PROFILE_PATH" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
 
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "BUNDLE_ID=$BUNDLE_ID" >> "$GITHUB_ENV"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          echo "Provisioning profile installed."
+          echo "Bundle ID detected: $BUNDLE_ID"
+
+      # ==========================================================
+      # SIGNED BUILD
+      # ==========================================================
 
       - name: Build signed archive
         if: env.HAS_SIGNING == 'true'
@@ -85,9 +162,17 @@ jobs:
           SIGNING_IDENTITY: ${{ secrets.IOS_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
+
           rm -rf build
           mkdir -p build
+
           PROFILE_SPECIFIER="${PROFILE_NAME_SECRET:-$PROFILE_NAME}"
+
+          echo "Building signed archive..."
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "Profile: $PROFILE_SPECIFIER"
+          echo "Team: $TEAM_ID"
+
           xcodebuild \
             -project BusTrafficFever.xcodeproj \
             -scheme BusTrafficFever \
@@ -100,15 +185,37 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             archive
 
+      # ==========================================================
+      # UNSIGNED IPA
+      # ==========================================================
+
       - name: Export unsigned IPA
         if: env.HAS_SIGNING == 'false'
         run: |
           set -euo pipefail
-          rm -rf build/Payload build/BusTrafficFever-unsigned.ipa
+
+          rm -rf \
+            build/Payload \
+            build/BusTrafficFever-unsigned.ipa
+
           mkdir -p build/Payload
-          cp -R build/BusTrafficFever.xcarchive/Products/Applications/BusTrafficFever.app build/Payload/
+
+          cp -R \
+            build/BusTrafficFever.xcarchive/Products/Applications/BusTrafficFever.app \
+            build/Payload/
+
           cd build
-          zip -qry BusTrafficFever-unsigned.ipa Payload
+
+          zip -qry \
+            BusTrafficFever-unsigned.ipa \
+            Payload
+
+          echo "Unsigned IPA created:"
+          ls -lh BusTrafficFever-unsigned.ipa
+
+      # ==========================================================
+      # SIGNED IPA
+      # ==========================================================
 
       - name: Export signed IPA
         if: env.HAS_SIGNING == 'true'
@@ -117,20 +224,27 @@ jobs:
           PROFILE_NAME_SECRET: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
         run: |
           set -euo pipefail
+
           PROFILE_SPECIFIER="${PROFILE_NAME_SECRET:-$PROFILE_NAME}"
+
           cat > build/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+          "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
             <string>ad-hoc</string>
+
             <key>signingStyle</key>
             <string>manual</string>
+
             <key>teamID</key>
             <string>${TEAM_ID}</string>
+
             <key>compileBitcode</key>
             <false/>
+
             <key>provisioningProfiles</key>
             <dict>
               <key>${BUNDLE_ID}</key>
@@ -140,12 +254,24 @@ jobs:
           </plist>
           PLIST
 
-          xcodebuild -exportArchive \
+          echo "Exporting signed IPA..."
+
+          xcodebuild \
+            -exportArchive \
             -archivePath build/BusTrafficFever.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist
 
-          cp build/export/BusTrafficFever.ipa build/BusTrafficFever.ipa
+          cp \
+            build/export/BusTrafficFever.ipa \
+            build/BusTrafficFever.ipa
+
+          echo "Signed IPA created:"
+          ls -lh build/BusTrafficFever.ipa
+
+      # ==========================================================
+      # UPLOAD IPA
+      # ==========================================================
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
@@ -155,9 +281,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # ==========================================================
+      # UPLOAD XCARCHIVE
+      # ==========================================================
+
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: BusTrafficFever-XCArchive
           path: build/BusTrafficFever.xcarchive
+          if-no-files-found: error
           retention-days: 7
